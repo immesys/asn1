@@ -311,7 +311,7 @@ func outsideUTCRange(t time.Time) bool {
 func makeUTCTime(t time.Time) (e encoder, err error) {
 	dst := make([]byte, 0, 18)
 
-	dst, err = appendUTCTime(dst, t)
+	dst, err = appendUTCTime(dst, t.UTC())
 	if err != nil {
 		return nil, err
 	}
@@ -508,7 +508,7 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 		}
 	}
 
-	return nil, StructuralError{"unknown Go type"}
+	return nil, StructuralError{fmt.Sprintf("unknown Go type: %v", value)}
 }
 
 func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
@@ -556,9 +556,30 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 		return t, nil
 	}
 
+	if v.Type() == externalType {
+		ex := v.Interface().(External)
+		oid, e := makeField(reflect.ValueOf(ex.OID), parseFieldParameters(""))
+		if e != nil {
+			return nil, e
+		}
+		tagv := 0
+		subt, e := makeField(reflect.ValueOf(ex.Content), fieldParameters{explicit: true, tag: &tagv, application: true})
+		if e != nil {
+			return nil, e
+		}
+		t := new(taggedEncoder)
+		subbytes := make([]byte, oid.Len()+subt.Len())
+		oid.Encode(subbytes)
+		subt.Encode(subbytes[oid.Len():])
+
+		t.tag = bytesEncoder(appendTagAndLength(t.scratch[:0], tagAndLength{ClassUniversal, TagExternal, oid.Len() + subt.Len(), true}))
+		t.body = bytesEncoder(subbytes)
+		return t, nil
+	}
+
 	tag, isCompound, ok := getUniversalType(v.Type())
 	if !ok {
-		return nil, StructuralError{fmt.Sprintf("unknown Go type: %v", v.Type())}
+		return nil, StructuralError{fmt.Sprintf("unknown Go type2: %v", v.Type())}
 	}
 	class := ClassUniversal
 
@@ -609,7 +630,6 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 	}
 
 	bodyLen := t.body.Len()
-
 	if params.explicit {
 		t.tag = bytesEncoder(appendTagAndLength(t.scratch[:0], tagAndLength{class, tag, bodyLen, isCompound}))
 

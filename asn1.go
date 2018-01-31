@@ -32,20 +32,37 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
-var registeredTypes map[string]interface{}
+type registeredTypeEntry struct {
+	I interface{}
+	O ObjectIdentifier
+}
+
+var registeredTypes map[string]registeredTypeEntry
 
 func init() {
-	registeredTypes = make(map[string]interface{})
+	registeredTypes = make(map[string]registeredTypeEntry)
 }
 
 func RegisterExternalType(oid ObjectIdentifier, iface interface{}) {
-	registeredTypes[oid.String()] = iface
+	registeredTypes[oid.String()] = registeredTypeEntry{iface, oid}
+}
+
+func NewExternal(iface interface{}) External {
+	if iface == nil {
+		panic("NewExternal called with nil interface")
+	}
+	cmp := reflect.TypeOf(iface)
+	for _, regif := range registeredTypes {
+		if reflect.TypeOf(regif.I) == cmp {
+			return External{Known: true, OID: regif.O, Content: iface}
+		}
+	}
+	panic("NewExternal called on unregistered type")
 }
 
 // An External field is one that that is defined as such:
 // 	myExternal INSTANCE OF TYPE-IDENTIFIER
 type External struct {
-	Raw     RawValue
 	Known   bool
 	OID     ObjectIdentifier
 	Content interface{}
@@ -670,7 +687,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length], bytes[initOffset : offset+t.length]}
 		offset += t.length
-		ex := External{Raw: result}
+		ex := External{}
 		suboffset := offset
 		t, suboffset, err = parseTagAndLength(result.Bytes, 0)
 		if err != nil {
@@ -688,7 +705,6 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 		ex.OID = ObjectIdentifier(oid)
 		suboffset += t.length
-		fmt.Printf("increasing offset by %d bytes\n", t.length)
 		t, suboffset, err = parseTagAndLength(result.Bytes, suboffset)
 		if err != nil {
 			return
@@ -699,7 +715,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		iface, known := registeredTypes[oidstring]
 		if known {
 			ex.Known = true
-			realv := reflect.ValueOf(iface).Elem()
+			realv := reflect.ValueOf(iface)
 			_, err = parseField(realv, ex.Bytes, 0, parseFieldParameters(`asn1:"tag:0"`))
 			if err != nil {
 				return
