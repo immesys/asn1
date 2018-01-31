@@ -28,6 +28,8 @@ import (
 	"strconv"
 	"time"
 	"unicode/utf8"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 var registeredTypes map[string]interface{}
@@ -669,27 +671,30 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length], bytes[initOffset : offset+t.length]}
 		offset += t.length
 		ex := External{Raw: result}
-
-		t, offset, err = parseTagAndLength(result.Bytes, 0)
+		suboffset := offset
+		t, suboffset, err = parseTagAndLength(result.Bytes, 0)
 		if err != nil {
 			return
 		}
 		if t.tag != TagOID {
+			spew.Dump(t)
 			err = SyntaxError{"Expected OID"}
 			return
 		}
-		oid, err1 := parseObjectIdentifier(result.Bytes[offset : offset+t.length])
+		oid, err1 := parseObjectIdentifier(result.Bytes[suboffset : suboffset+t.length])
 		if err1 != nil {
 			err = err1
 			return
 		}
 		ex.OID = ObjectIdentifier(oid)
-		offset += t.length
-		t, offset, err = parseTagAndLength(result.Bytes, offset)
+		suboffset += t.length
+		fmt.Printf("increasing offset by %d bytes\n", t.length)
+		t, suboffset, err = parseTagAndLength(result.Bytes, suboffset)
 		if err != nil {
 			return
 		}
-		ex.Bytes = result.Bytes[offset : offset+t.length]
+
+		ex.Bytes = result.Bytes[suboffset : suboffset+t.length]
 		oidstring := ex.OID.String()
 		iface, known := registeredTypes[oidstring]
 		if known {
