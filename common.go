@@ -149,6 +149,8 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
 		return TagEnum, false, true
 	case bigIntType:
 		return TagInteger, false, true
+	case externalType:
+		return TagExternal, true, true
 	}
 	switch t.Kind() {
 	case reflect.Bool:

@@ -712,11 +712,12 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 
 		ex.Bytes = result.Bytes[suboffset : suboffset+t.length]
 		oidstring := ex.OID.String()
-		iface, known := registeredTypes[oidstring]
+		entry, known := registeredTypes[oidstring]
 		if known {
 			ex.Known = true
-			realv := reflect.ValueOf(iface)
-			_, err = parseField(realv, ex.Bytes, 0, parseFieldParameters(`asn1:"tag:0"`))
+			realt := reflect.TypeOf(entry.I)
+			realv := reflect.New(realt).Elem()
+			_, err = parseField(realv, ex.Bytes, 0, parseFieldParameters(""))
 			if err != nil {
 				return
 			}
@@ -864,7 +865,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		if ok {
 			offset = initOffset
 		} else {
-			err = StructuralError{fmt.Sprintf("tags don't match (%d vs %+v) %+v %s @%d", expectedTag, t, params, fieldType.Name(), offset)}
+			err = StructuralError{fmt.Sprintf("tags don't match (expected=%d, got=%+v) params=%+v fieldtype=%s @%d", expectedTag, t, params, fieldType.Name(), offset)}
 		}
 		return
 	}
