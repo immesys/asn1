@@ -28,8 +28,6 @@ import (
 	"strconv"
 	"time"
 	"unicode/utf8"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 type registeredTypeEntry struct {
@@ -694,7 +692,6 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			return
 		}
 		if t.tag != TagOID {
-			spew.Dump(t)
 			err = SyntaxError{"Expected OID"}
 			return
 		}
@@ -709,7 +706,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		if err != nil {
 			return
 		}
-
+		if invalidLength(suboffset, t.length, len(result.Bytes)) {
+			err = SyntaxError{"data truncated"}
+			return
+		}
 		ex.Bytes = result.Bytes[suboffset : suboffset+t.length]
 		oidstring := ex.OID.String()
 		entry, known := registeredTypes[oidstring]
