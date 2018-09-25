@@ -168,7 +168,7 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
 		}
 		return TagSequence, true, true
 	case reflect.String:
-		return TagPrintableString, false, true
+		return TagUTF8String, false, true
 	}
 	return 0, false, false
 }

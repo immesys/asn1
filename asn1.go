@@ -593,7 +593,7 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 			// We pretend that various other string types are
 			// PRINTABLE STRINGs so that a sequence of them can be
 			// parsed into a []string.
-			t.tag = TagPrintableString
+			t.tag = TagUTF8String
 		case TagGeneralizedTime, TagUTCTime:
 			// Likewise, both time types are treated the same.
 			t.tag = TagUTCTime
@@ -824,10 +824,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	// type string. getUniversalType returns the tag for PrintableString
 	// when it sees a string, so if we see a different string type on the
 	// wire, we change the universal type to match.
-	if universalTag == TagPrintableString {
+	if universalTag == TagUTF8String {
 		if t.class == ClassUniversal {
 			switch t.tag {
-			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
+			case TagIA5String, TagGeneralString, TagT61String, TagPrintableString:
 				universalTag = t.tag
 			}
 		} else if params.stringType != 0 {

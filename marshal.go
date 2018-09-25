@@ -479,7 +479,6 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 		}
 
 		var fp fieldParameters
-
 		switch l := v.Len(); l {
 		case 0:
 			return bytesEncoder(nil), nil
@@ -582,17 +581,16 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 		return nil, StructuralError{fmt.Sprintf("unknown Go type2: %v", v.Type())}
 	}
 	class := ClassUniversal
-
 	if params.timeType != 0 && tag != TagUTCTime {
 		return nil, StructuralError{"explicit time type given to non-time member"}
 	}
 
-	if params.stringType != 0 && tag != TagPrintableString {
+	if params.stringType != 0 && tag != TagUTF8String {
 		return nil, StructuralError{"explicit string type given to non-string member"}
 	}
 
 	switch tag {
-	case TagPrintableString:
+	case TagUTF8String:
 		if params.stringType == 0 {
 			// This is a string without an explicit string type. We'll use
 			// a PrintableString if the character set in the string is
